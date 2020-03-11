@@ -44,12 +44,20 @@ type enrollResponse struct {
 	NodeKey string `json:"node_key"`
 }
 
+type distributedReadResponse struct {
+	Queries map[string]string `json:"queries"`
+}
+
 func (a *Agent) runLoop() {
 	a.Enroll()
 	for {
 		a.Config()
-		a.DistributedRead()
-		a.DistributedWrite()
+		resp, err := a.DistributedRead()
+		if err != nil {
+			log.Println(err)
+		} else {
+			a.DistributedWrite(resp.Queries)
+		}
 		time.Sleep(10 * time.Second)
 	}
 }
@@ -92,6 +100,7 @@ func (a *Agent) Enroll() {
 		log.Println("do request:", err)
 		return
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		log.Println("status:", resp.Status)
@@ -124,6 +133,7 @@ func (a *Agent) Config() {
 		log.Println("do config request:", err)
 		return
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		log.Println("config status:", resp.Status)
@@ -133,13 +143,12 @@ func (a *Agent) Config() {
 	// No need to read the config body
 }
 
-func (a *Agent) DistributedRead() {
+func (a *Agent) DistributedRead() (*distributedReadResponse, error) {
 	body := bytes.NewBufferString(`{"node_key": "` + a.NodeKey + `"}`)
 
 	req, err := http.NewRequest("POST", a.ServerAddress+"/api/v1/osquery/distributed/read", body)
 	if err != nil {
-		log.Println("create distributed read request:", err)
-		return
+		return nil, fmt.Errorf("create distributed read request:", err)
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Accept", "application/json")
@@ -147,22 +156,30 @@ func (a *Agent) DistributedRead() {
 
 	resp, err := a.Client.Do(req)
 	if err != nil {
-		log.Println("do distributed read request:", err)
-		return
+		return nil, fmt.Errorf("do distributed read request:", err)
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Println("distributed read status:", resp.Status)
+		return nil, fmt.Errorf("distributed read status:", resp.Status)
+	}
+
+	var parsedResp distributedReadResponse
+	if err := json.NewDecoder(resp.Body).Decode(&parsedResp); err != nil {
+		return nil, fmt.Errorf("json parse distributed read response:", err)
+	}
+
+	return &parsedResp, nil
+}
+
+func (a *Agent) DistributedWrite(queries map[string]string) {
+	var body bytes.Buffer
+	// Currently only responding to the set of detail/label queries
+	if _, ok := queries["kolide_detail_query_network_interface"]; !ok {
 		return
 	}
 
-	// No need to read the distributed read body (for now)
-}
-
-func (a *Agent) DistributedWrite() {
-	var body bytes.Buffer
 	a.Templates.ExecuteTemplate(&body, "distributed_write", a)
-
 	req, err := http.NewRequest("POST", a.ServerAddress+"/api/v1/osquery/distributed/write", &body)
 	if err != nil {
 		log.Println("create distributed write request:", err)
@@ -177,6 +194,7 @@ func (a *Agent) DistributedWrite() {
 		log.Println("do distributed write request:", err)
 		return
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		log.Println("distributed write status:", resp.Status)
