@@ -50,15 +50,33 @@ type distributedReadResponse struct {
 
 func (a *Agent) runLoop() {
 	a.Enroll()
-	for {
-		a.Config()
-		resp, err := a.DistributedRead()
-		if err != nil {
-			log.Println(err)
-		} else {
+
+	a.Config()
+	resp, err := a.DistributedRead()
+	if err != nil {
+		log.Println(err)
+	} else {
+		if len(resp.Queries) > 0 {
 			a.DistributedWrite(resp.Queries)
 		}
-		time.Sleep(10 * time.Second)
+	}
+
+	configTicker := time.Tick(10 * time.Minute)
+	liveQueryTicker := time.Tick(1 * time.Minute)
+	for {
+		select {
+		case <-configTicker:
+			a.Config()
+		case <-liveQueryTicker:
+			resp, err := a.DistributedRead()
+			if err != nil {
+				log.Println(err)
+			} else {
+				if len(resp.Queries) > 0 {
+					a.DistributedWrite(resp.Queries)
+				}
+			}
+		}
 	}
 }
 
@@ -172,14 +190,37 @@ func (a *Agent) DistributedRead() (*distributedReadResponse, error) {
 	return &parsedResp, nil
 }
 
+type distributedWriteRequest struct {
+	Queries  map[string]json.RawMessage `json:"queries"`
+	Statuses map[string]string          `json:"statuses"`
+	NodeKey  string                     `json:"node_key"`
+}
+
+var defaultQueryResult = json.RawMessage(`[{"foo": "bar"}]`)
+
+const statusSuccess = "0"
+
 func (a *Agent) DistributedWrite(queries map[string]string) {
 	var body bytes.Buffer
-	// Currently only responding to the set of detail/label queries
-	if _, ok := queries["kolide_detail_query_network_interface"]; !ok {
-		return
+
+	if _, ok := queries["kolide_detail_query_network_interface"]; ok {
+		// Respond to label/detail queries
+		a.Templates.ExecuteTemplate(&body, "distributed_write", a)
+	} else {
+		// Return a generic response for any other queries
+		req := distributedWriteRequest{
+			Queries:  make(map[string]json.RawMessage),
+			Statuses: make(map[string]string),
+			NodeKey:  a.NodeKey,
+		}
+
+		for name, _ := range queries {
+			req.Queries[name] = defaultQueryResult
+			req.Statuses[name] = statusSuccess
+		}
+		json.NewEncoder(&body).Encode(req)
 	}
 
-	a.Templates.ExecuteTemplate(&body, "distributed_write", a)
 	req, err := http.NewRequest("POST", a.ServerAddress+"/api/v1/osquery/distributed/write", &body)
 	if err != nil {
 		log.Println("create distributed write request:", err)
@@ -209,6 +250,7 @@ func main() {
 	enrollSecret := flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
 	hostCount := flag.Int("host_count", 10, "Number of hosts to start (default 10)")
 	randSeed := flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
+	startPeriod := flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
 
 	flag.Parse()
 
@@ -220,7 +262,7 @@ func main() {
 	}
 
 	// Spread requests over the 10 seconds interval
-	sleepTime := (10 * time.Second) / time.Duration(*hostCount)
+	sleepTime := *startPeriod / time.Duration(*hostCount)
 	var agents []*Agent
 	for i := 0; i < *hostCount; i++ {
 		a := NewAgent(*serverURL, *enrollSecret, tmpl)
