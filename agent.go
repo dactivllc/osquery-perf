@@ -17,26 +17,30 @@ import (
 )
 
 type Agent struct {
-	ServerAddress string
-	EnrollSecret  string
-	NodeKey       string
-	UUID          string
-	Client        http.Client
-	Templates     *template.Template
-	strings       map[string]string
+	ServerAddress  string
+	EnrollSecret   string
+	NodeKey        string
+	UUID           string
+	Client         http.Client
+	ConfigInterval time.Duration
+	QueryInterval  time.Duration
+	Templates      *template.Template
+	strings        map[string]string
 }
 
-func NewAgent(serverAddress, enrollSecret string, templates *template.Template) *Agent {
+func NewAgent(serverAddress, enrollSecret string, templates *template.Template, configInterval, queryInterval time.Duration) *Agent {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	transport.DisableCompression = true
 	return &Agent{
-		ServerAddress: serverAddress,
-		EnrollSecret:  enrollSecret,
-		Templates:     templates,
-		UUID:          uuid.New().String(),
-		Client:        http.Client{Transport: transport},
-		strings:       make(map[string]string),
+		ServerAddress:  serverAddress,
+		EnrollSecret:   enrollSecret,
+		Templates:      templates,
+		ConfigInterval: configInterval,
+		QueryInterval:  queryInterval,
+		UUID:           uuid.New().String(),
+		Client:         http.Client{Transport: transport},
+		strings:        make(map[string]string),
 	}
 }
 
@@ -61,8 +65,8 @@ func (a *Agent) runLoop() {
 		}
 	}
 
-	configTicker := time.Tick(10 * time.Minute)
-	liveQueryTicker := time.Tick(1 * time.Minute)
+	configTicker := time.Tick(a.ConfigInterval)
+	liveQueryTicker := time.Tick(a.QueryInterval)
 	for {
 		select {
 		case <-configTicker:
@@ -251,6 +255,8 @@ func main() {
 	hostCount := flag.Int("host_count", 10, "Number of hosts to start (default 10)")
 	randSeed := flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
 	startPeriod := flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
+	configInterval := flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
+	queryInterval := flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
 
 	flag.Parse()
 
@@ -261,11 +267,11 @@ func main() {
 		log.Fatal("parse templates: ", err)
 	}
 
-	// Spread requests over the 10 seconds interval
+	// Spread starts over the interval to prevent thunering herd
 	sleepTime := *startPeriod / time.Duration(*hostCount)
 	var agents []*Agent
 	for i := 0; i < *hostCount; i++ {
-		a := NewAgent(*serverURL, *enrollSecret, tmpl)
+		a := NewAgent(*serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval)
 		agents = append(agents, a)
 		go a.runLoop()
 		time.Sleep(sleepTime)

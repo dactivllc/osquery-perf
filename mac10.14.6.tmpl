@@ -229,17 +229,17 @@
     "kolide_detail_query_osquery_flags":[
       {
         "name":"config_refresh",
-        "value":"0"
+        "value":"{{ printf "%.0f" .ConfigInterval.Seconds }}"
 
 },
       {
         "name":"distributed_interval",
-        "value":"10"
+        "value":"{{ printf "%.0f" .QueryInterval.Seconds }}"
 
 },
       {
         "name":"logger_tls_period",
-        "value":"10"
+        "value":"99999"
 
 }
 
@@ -293,24 +293,6 @@
 
 }
 
-],
-    "kolide_label_query_6":[
-      {
-        "1":"1"
-
-}
-
-],
-    "kolide_label_query_7":[
-      {
-        "1":"1"
-
-}
-
-],
-    "kolide_label_query_9":[
-
-
 ]
 
 },
@@ -320,11 +302,7 @@
     "kolide_detail_query_osquery_flags":0,
     "kolide_detail_query_osquery_info":0,
     "kolide_detail_query_system_info":0,
-    "kolide_detail_query_uptime":0,
-    "kolide_label_query_6":0,
-    "kolide_label_query_7":0,
-    "kolide_label_query_9":0
-
+    "kolide_detail_query_uptime":0
 },
   "node_key":"{{ .NodeKey }}"
 }
