@@ -106,7 +106,10 @@ func (a *Agent) CachedString(key string) string {
 
 func (a *Agent) Enroll() {
 	var body bytes.Buffer
-	a.Templates.ExecuteTemplate(&body, "enroll", a)
+	if err := a.Templates.ExecuteTemplate(&body, "enroll", a); err != nil {
+		log.Println("execute template:", err)
+		return
+	}
 
 	req, err := http.NewRequest("POST", a.ServerAddress+"/api/v1/osquery/enroll", &body)
 	if err != nil {
@@ -115,7 +118,7 @@ func (a *Agent) Enroll() {
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Accept", "application/json")
-	req.Header.Add("User-Agent", "osquery/4.1.2")
+	req.Header.Add("User-Agent", "osquery/4.6.0")
 
 	resp, err := a.Client.Do(req)
 	if err != nil {
@@ -148,7 +151,7 @@ func (a *Agent) Config() {
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Accept", "application/json")
-	req.Header.Add("User-Agent", "osquery/4.1.2")
+	req.Header.Add("User-Agent", "osquery/4.6.0")
 
 	resp, err := a.Client.Do(req)
 	if err != nil {
@@ -174,7 +177,7 @@ func (a *Agent) DistributedRead() (*distributedReadResponse, error) {
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Accept", "application/json")
-	req.Header.Add("User-Agent", "osquery/4.1.2")
+	req.Header.Add("User-Agent", "osquery/4.6.0")
 
 	resp, err := a.Client.Do(req)
 	if err != nil {
@@ -207,7 +210,7 @@ const statusSuccess = "0"
 func (a *Agent) DistributedWrite(queries map[string]string) {
 	var body bytes.Buffer
 
-	if _, ok := queries["kolide_detail_query_network_interface"]; ok {
+	if _, ok := queries["fleet_detail_query_network_interface"]; ok {
 		// Respond to label/detail queries
 		a.Templates.ExecuteTemplate(&body, "distributed_write", a)
 	} else {
@@ -232,7 +235,7 @@ func (a *Agent) DistributedWrite(queries map[string]string) {
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Accept", "application/json")
-	req.Header.Add("User-Agent", "osquery/4.1.2")
+	req.Header.Add("User-Agent", "osquery/4.6.0")
 
 	resp, err := a.Client.Do(req)
 	if err != nil {

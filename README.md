@@ -1,7 +1,7 @@
 # Osquery Server Performance Tester
 
 This repository provides a tool to generate realistic traffic to an osquery
-management server (primarily, [Fleet](https://github.com/kolide/fleet)). With
+management server (primarily, [Fleet](https://github.com/fleetdm/fleet)). With
 this tool, many thousands of hosts can be simulated from a single host.
 
 ## Requirements
@@ -61,3 +61,17 @@ go run agent.go --enroll_secret hgh4hk3434l2jjf --seed 0
 
 By using the same seed, along with other values, we usually get hosts that look
 the same to the server. This is not guaranteed, but it is a useful technique.
+
+### Resource Limits
+
+On many systems, trying to simulate a large number of hosts will result in hitting system resource limits (such as number of open file descriptors).
+
+If you see errors such as `dial tcp: lookup localhost: no such host` or `read: connection reset by peer`, try increasing these limits.
+
+#### macOS
+
+Run the following command in the shell before running the Fleet server _and_ before running `agent.go` (run it once in each shell):
+
+``` sh
+ulimit -n 64000
+```

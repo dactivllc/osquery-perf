@@ -23,7 +23,7 @@
             "platform_mask": "21",
             "start_time": "1580931224",
             "uuid": "{{ .UUID }}",
-            "version": "4.1.2",
+            "version": "4.6.0",
             "watcher": "12946"
         },
         "platform_info": {
@@ -61,7 +61,7 @@
 {{ define "distributed_write" -}}
 {
   "queries":{
-    "kolide_detail_query_network_interface":[
+    "fleet_detail_query_network_interface":[
       {
         "point_to_point":"",
         "address":"fe80::8cb:112d:ff51:1e5d%en0",
@@ -211,7 +211,7 @@
 }
 
 ],
-    "kolide_detail_query_os_version":[
+    "fleet_detail_query_os_version":[
       {
         "name":"Mac OS X",
         "version":"10.14.6",
@@ -226,7 +226,7 @@
 }
 
 ],
-    "kolide_detail_query_osquery_flags":[
+    "fleet_detail_query_osquery_flags":[
       {
         "name":"config_refresh",
         "value":"{{ printf "%.0f" .ConfigInterval.Seconds }}"
@@ -244,7 +244,7 @@
 }
 
 ],
-    "kolide_detail_query_osquery_info":[
+    "fleet_detail_query_osquery_info":[
       {
         "pid":"11287",
         "uuid":"{{ .UUID }}",
@@ -262,7 +262,7 @@
 }
 
 ],
-    "kolide_detail_query_system_info":[
+    "fleet_detail_query_system_info":[
       {
         "hostname":"{{ .CachedString "hostname" }}",
         "uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB",
@@ -283,7 +283,7 @@
 }
 
 ],
-    "kolide_detail_query_uptime":[
+    "fleet_detail_query_uptime":[
       {
         "days":"0",
         "hours":"4",
@@ -297,12 +297,12 @@
 
 },
   "statuses":{
-    "kolide_detail_query_network_interface":0,
-    "kolide_detail_query_os_version":0,
-    "kolide_detail_query_osquery_flags":0,
-    "kolide_detail_query_osquery_info":0,
-    "kolide_detail_query_system_info":0,
-    "kolide_detail_query_uptime":0
+    "fleet_detail_query_network_interface":0,
+    "fleet_detail_query_os_version":0,
+    "fleet_detail_query_osquery_flags":0,
+    "fleet_detail_query_osquery_info":0,
+    "fleet_detail_query_system_info":0,
+    "fleet_detail_query_uptime":0
 },
   "node_key":"{{ .NodeKey }}"
 }
